@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tfwrapper import utils as tfutils
 
-import utils
+import utils.utils as utils
 
 import numpy as np
 import os
@@ -146,6 +146,7 @@ class phiseg():
         self.saver_best_dice = tf.train.Saver(max_to_keep=2)
         self.saver_best_ged = tf.train.Saver(max_to_keep=2)
         self.saver_best_ncc = tf.train.Saver(max_to_keep=2)
+        self.saver_best_qubiq = tf.train.Saver(max_to_keep=2)
 
         # Settings to optimize GPU memory usage
         config = tf.ConfigProto()
@@ -162,6 +163,20 @@ class phiseg():
         pass
         # if hasattr(self.exp_config, 'residual_multinoulli_loss_weight') and not self.exp_config.discrete_data:
         #     raise ValueError('Invalid settings in exp_config: residual_multinoulli_loss requires discrete_data to be True.')
+    def get_parameter(self):
+        total_parameters = 0
+        for variable in tf.trainable_variables():
+        # shape is an array of tf.Dimension
+            shape = variable.get_shape()
+            print(shape)
+            print(len(shape))
+            variable_parameters = 1
+            for dim in shape:
+                print(dim)
+                variable_parameters *= dim.value
+            print(variable_parameters)
+            total_parameters += variable_parameters
+        print(total_parameters)
 
     def train(self, data):
 
@@ -182,6 +197,7 @@ class phiseg():
         self.best_loss = np.inf
         self.best_ged = np.inf
         self.best_ncc = -1
+        self.best_quibq = -1
 
         for step in range(self.init_step, self.exp_config.num_iter):
 
@@ -205,6 +221,9 @@ class phiseg():
             if step % self.exp_config.validation_frequency == 0:
 
                 self._do_validation(data)
+
+            # print("step here: " ,step)
+
 
 
     def KL_two_gauss_with_diag_cov(self, mu0, sigma0, mu1, sigma1):
@@ -563,15 +582,16 @@ class phiseg():
         elbo_list = []
         ged_list = []
         ncc_list = []
+        qubiq_list = []
 
-        N = data.validation.images.shape[0] if self.exp_config.num_validation_images == 'all' else self.exp_config.num_validation_images
-
+        N = data.validation.images.shape[0]
+        # print(N)
         for ii in range(N):
-
             # logging.info(ii)
 
             x = data.validation.images[ii, ...].reshape([1] + list(self.exp_config.image_size))
             s_gt_arr = data.validation.labels[ii, ...]
+
             s = s_gt_arr[:,:,np.random.choice(self.exp_config.annotator_range)]
 
             x_b = np.tile(x, [self.exp_config.validation_samples, 1, 1, 1])
@@ -588,15 +608,18 @@ class phiseg():
 
             s_pred_arr = np.argmax(s_pred_sm_arr, axis=-1)
             s_gt_arr_r = s_gt_arr.transpose((2, 0, 1))  # num gts x X x Y
+            # print(s_gt_arr_r.shape)
 
             s_gt_arr_r_sm = utils.convert_batch_to_onehot(s_gt_arr_r, self.exp_config.nlabels)  # num gts x X x Y x nlabels
 
+            # print("s_gt_arr_r_sm", s_gt_arr_r_sm.shape)
             ged = utils.generalised_energy_distance(s_pred_arr, s_gt_arr_r,
                                                     nlabels=self.exp_config.nlabels-1,
                                                     label_range=range(1, self.exp_config.nlabels))
 
             ncc = utils.variance_ncc_dist(s_pred_sm_arr, s_gt_arr_r_sm)
-
+            # print(s_pred_sm_arr.shape, s_gt_arr_r_sm.shape)
+            qubiq = utils.QUBIQ(s_gt_arr_r, s_pred_arr)
             s_ = np.argmax(s_pred_sm_mean_, axis=-1)
 
             # Write losses to list
@@ -618,6 +641,7 @@ class phiseg():
             elbo_list.append(elbo)
             ged_list.append(ged)
             ncc_list.append(ncc)
+            qubiq_list.append(qubiq)
 
         dice_arr = np.asarray(dice_list)
         per_structure_dice = dice_arr.mean(axis=0)
@@ -626,12 +650,13 @@ class phiseg():
         avg_elbo = utils.list_mean(elbo_list)
         avg_ged = utils.list_mean(ged_list)
         avg_ncc = utils.list_mean(ncc_list)
-
+        avg_qubiq = np.mean(np.mean(qubiq_list, axis=1))
         logging.info('FULL VALIDATION (%d images):' % N)
         logging.info(' - Mean foreground dice: %.4f' % np.mean(per_structure_dice))
         logging.info(' - Mean (neg.) ELBO: %.4f' % avg_elbo)
         logging.info(' - Mean GED: %.4f' % avg_ged)
         logging.info(' - Mean NCC: %.4f' % avg_ncc)
+        logging.info(" - Mean QUBIQ: %.4f" % avg_qubiq)
 
         logging.info('@ Running through validation set took: %.2f secs' % (time.time() - start_dice_val))
 
@@ -652,6 +677,12 @@ class phiseg():
             logging.info('New best GED score! (%.3f)' % self.best_ged)
             best_file = os.path.join(self.log_dir, 'model_best_ged.ckpt')
             self.saver_best_ged.save(self.sess, best_file, global_step=global_step)
+
+        if avg_qubiq >= self.best_quibq:
+            self.best_quibq = avg_qubiq
+            logging.info("New Best Qubiq score! (%.4f)" % self.best_quibq)
+            best_file = os.path.join(self.log_dir, "model_best_qubiq.ckpt")
+            self.saver_best_qubiq.save(self.sess, best_file, global_step= global_step)
 
         if avg_ncc >= self.best_ncc:
             self.best_ncc = avg_ncc
@@ -677,6 +708,7 @@ class phiseg():
         val_summary_feed_dict[self.val_elbo] = avg_elbo
         val_summary_feed_dict[self.val_ged] = avg_ged
         val_summary_feed_dict[self.val_ncc] = np.squeeze(avg_ncc)
+        val_summary_feed_dict[self.val_qubiq] = avg_qubiq
 
         for ii in range(self.exp_config.nlabels):
             val_summary_feed_dict[self.val_lbl_dice_scores[ii]] = per_structure_dice[ii]
@@ -791,6 +823,8 @@ class phiseg():
 
         self.val_ncc = tf.placeholder(tf.float32, shape=[], name='val_ncc')
         val_ncc_summary = tf.summary.scalar('validation_NCC', self.val_ncc)
+        self.val_qubiq = tf.placeholder(tf.float32, shape = [], name = "val_ncc")
+        val_qubiq_summary = tf.summary.scalar("validation_qubiq", self.val_qubiq)
 
 
         self.val_lbl_dice_scores = []
@@ -806,7 +840,8 @@ class phiseg():
                                              val_lbl_dice_summaries,
                                              val_elbo_summary,
                                              val_ged_summary,
-                                             val_ncc_summary])
+                                             val_ncc_summary,
+                                             val_qubiq_summary])
 
         # Train summaries
         self.train_loss_pl_dict= {}
@@ -832,7 +867,7 @@ class phiseg():
             if init_checkpoint_path is not False:
 
                 self.init_checkpoint_path = init_checkpoint_path
-                self.continue_run = True
+                self.continue_run = False
                 self.init_step = int(self.init_checkpoint_path.split('/')[-1].split('-')[-1])
                 self.log_dir += '_cont'
 

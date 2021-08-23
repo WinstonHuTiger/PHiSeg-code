@@ -11,11 +11,11 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 # Full paths are required because otherwise the code will not know where to look
 # when it is executed on one of the clusters.
 
-at_biwi = True  # Are you running this code from the ETH Computer Vision Lab (Biwi)?
+use_gpu = True  # Are you running this code from the ETH Computer Vision Lab (Biwi)?
 
-project_root = '/scratch_net/bmicdl03/code/python/phiseg_public'
-local_hostnames = ['bmicdl03']  # used to check if on cluster or not
-log_root = '/itet-stor/baumgach/net_scratch/logs/phiseg_public'
+project_root = 'D:\dev_x\PHiSeg-code'
+local_hostnames = ['Winston-Desktop']  # used to check if on cluster or not
+log_root = 'D:\dev_x\phiseg_log'
 
 ##################################################################################
 
@@ -24,7 +24,7 @@ running_on_gpu_host = True if socket.gethostname() not in local_hostnames else F
 
 def setup_GPU_environment():
 
-    if at_biwi:
+    if use_gpu:
 
         hostname = socket.gethostname()
         print('Running on %s' % hostname)
