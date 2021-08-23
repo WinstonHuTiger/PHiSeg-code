@@ -99,7 +99,7 @@ def prepare_data(input_file, output_file):
 
     for tt in ['test', 'train', 'val']:
 
-        groups[tt].create_dataset('uids', data=np.asarray(uids[tt], dtype=np.int))
+        groups[tt].create_dataset('uids', data=np.asarray(uids[tt], dtype=np.int64))
         groups[tt].create_dataset('labels', data=np.asarray(labels[tt], dtype=np.uint8))
         groups[tt].create_dataset('images', data=np.asarray(images[tt], dtype=np.float))
 

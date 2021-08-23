@@ -2,9 +2,10 @@
 # Christian F. Baumgartner (c.f.baumgartner@gmail.com)
 
 import numpy as np
-
+import sys
+sys.path.append('..')
 from scipy.ndimage import zoom
-import utils
+import utils.utils as utils
 
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
@@ -60,6 +61,7 @@ class BatchProvider():
 
 
         if self.num_labels_per_subject > 1:
+            # print("range", self.annotator_range)
             y_batch = self._select_random_label(y_batch, self.annotator_range)
 
         X_batch, y_batch = self._post_process_batch(X_batch, y_batch)
@@ -115,7 +117,7 @@ class BatchProvider():
         # logging.info(y_batch.shape)
 
         if self.normalise_images:
-            utils.normalise_images(np.float32(X_batch))
+            utils.normalise_image(np.float32(X_batch))
 
         if self.rescale_rgb:
             X_batch = X_batch.astype(np.float32) / 127.5 - 1
@@ -131,6 +133,8 @@ class BatchProvider():
     def _select_random_label(self, labels, annotator_range):
 
         y_tmp_list = []
+        # print(labels.shape)
+        # print("labels shape 0",labels.shape[0])
         for ii in range(labels.shape[0]):
             # print('random annotator: %d' % np.random.choice(annotator_range))
             y_tmp_list.append(labels[ii, ..., np.random.choice(annotator_range)])
