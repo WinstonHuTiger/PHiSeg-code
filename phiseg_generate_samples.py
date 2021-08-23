@@ -190,12 +190,14 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
         description="Script for a simple test loop evaluating a network on the test dataset")
-    parser.add_argument("EXP_PATH", type=str, help="Path to experiment folder (assuming you are in the working directory)")
+    parser.add_argument("EXP_PATH",
+                        type=str, help="Path to experiment folder (assuming you are in the working directory)")
     args = parser.parse_args()
 
     base_path = sys_config.project_root
 
     model_path = args.EXP_PATH
+    print(model_path)
     config_file = glob.glob(model_path + '/*py')[0]
     config_module = config_file.split('/')[-1].rstrip('.py')
 
