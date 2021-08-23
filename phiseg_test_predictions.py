@@ -36,10 +36,11 @@ def main(model_path, exp_config, do_plots=False):
 
     # Run predictions in an endless loop
     dice_list = []
+    qubiq_list = []
 
     num_samples = 1 if exp_config.likelihood is likelihoods.det_unet2D else 100
 
-    for ii, batch in enumerate(data.test.iterate_batches(1)):
+    for ii, batch in enumerate(data.test.iterate_batches(4)):
 
         if ii % 10 == 0:
             logging.info("Progress: %d" % ii)
@@ -49,7 +50,8 @@ def main(model_path, exp_config, do_plots=False):
         x, y = batch
 
         y_ = np.squeeze(phiseg_model.predict(x, num_samples=num_samples))
-
+        print("y", y_.shape)
+        # print("label", y.shape)
         per_lbl_dice = []
         per_pixel_preds = []
         per_pixel_gts = []
@@ -63,6 +65,8 @@ def main(model_path, exp_config, do_plots=False):
             fig.add_subplot(133)
             plt.imshow(np.squeeze(y))
             plt.show()
+
+        qubiq = utils.QUBIQ(y, y_)
 
         for lbl in range(exp_config.nlabels):
 
@@ -78,11 +82,13 @@ def main(model_path, exp_config, do_plots=False):
                 per_lbl_dice.append(dc(binary_pred, binary_gt))
 
         dice_list.append(per_lbl_dice)
+        qubiq_list.append(qubiq)
 
         per_pixel_preds.append(y_.flatten())
         per_pixel_gts.append(y.flatten())
 
     dice_arr = np.asarray(dice_list)
+    qubiq_arr = np.asarray(qubiq_list)
 
     mean_per_lbl_dice = dice_arr.mean(axis=0)
 
@@ -91,7 +97,12 @@ def main(model_path, exp_config, do_plots=False):
     logging.info(np.mean(mean_per_lbl_dice))
     logging.info('foreground mean: %f' % (np.mean(mean_per_lbl_dice[1:])))
 
+    logging.info("-- QUBIQ: --")
+    logging.info(np.mean(qubiq_arr))
+    logging.info(np.std(qubiq_arr))
+
     np.savez(os.path.join(model_path, 'dice_%s.npz' % model_selection), dice_arr)
+    np.savez(os.path.join(model_path, 'qubiq_%s.npz' % (model_selection)), qubiq_arr)
 
 
 if __name__ == '__main__':

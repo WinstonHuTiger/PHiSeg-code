@@ -7,7 +7,7 @@ from data.data_switch import data_switch
 import os
 import config.system as sys_config
 import shutil
-import utils
+import utils.utils as utils
 
 from phiseg import phiseg_model
 
@@ -28,7 +28,6 @@ def main(exp_config):
 
     # Fit model to data
     phiseg.train(data)
-
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(

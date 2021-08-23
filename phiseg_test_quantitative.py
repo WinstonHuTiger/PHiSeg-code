@@ -33,7 +33,7 @@ def main(model_path, exp_config, do_plots=False):
 
     N = data.test.images.shape[0]
 
-    ged_list = []
+    qubiq_list = []
     ncc_list = []
 
     for ii in range(N):
@@ -58,8 +58,7 @@ def main(model_path, exp_config, do_plots=False):
         s_b_r = s_b.transpose((2,0,1)) # num gts x X x Y
         s_b_r_sm = utils.convert_batch_to_onehot(s_b_r, exp_config.nlabels)  # num gts x X x Y x nlabels
 
-        ged = utils.generalised_energy_distance(s_arr, s_b_r, nlabels=exp_config.nlabels-1, label_range=range(1,exp_config.nlabels))
-        ged_list.append(ged)
+
 
         ncc = utils.variance_ncc_dist(s_arr_sm, s_b_r_sm)
         ncc_list.append(ncc)
@@ -68,6 +67,7 @@ def main(model_path, exp_config, do_plots=False):
 
     ged_arr = np.asarray(ged_list)
     ncc_arr = np.asarray(ncc_list)
+    qubiq_arr = np.asarray(qubiq_list)
 
     logging.info('-- GED: --')
     logging.info(np.mean(ged_arr))
@@ -81,6 +81,7 @@ def main(model_path, exp_config, do_plots=False):
     np.savez(os.path.join(model_path, 'ncc%s_%s.npz' % (str(n_samples), model_selection)), ncc_arr)
 
 
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
@@ -91,6 +92,7 @@ if __name__ == '__main__':
     base_path = sys_config.project_root
 
     model_path = args.EXP_PATH
+    print(model_path)
     config_file = glob.glob(model_path + '/*py')[0]
     config_module = config_file.split('/')[-1].rstrip('.py')
 
