@@ -208,8 +208,13 @@ def prepare_data(root, dataset, task, output, output_file):
 
         for i, image in enumerate(temp_images):
             x, y = __transform(tt, dataset, image, temp_labels[i])
-            # x = cv.resize(x, dsize=(128, 128))
-            # y = cv.resize(y, dsize=(128, 128))
+            # print(x.shape)
+            x = cv.resize(x, dsize=(128, 128))
+            y = cv.resize(y, dsize=(128, 128))
+            # print(x.shape)
+            # print(y.shape)
+            x = np.expand_dims(x, -1)
+            # print(x.shape, y.shape)
             images[tt].append(x)
             labels[tt].append(y)
 
@@ -297,7 +302,7 @@ def load_and_process_data(root,
 if __name__ == "__main__":
     input_file = r"D:\dev_x\cv_uncertainty\qubiq"
     preproc_folder = "D:\dev_x\phiseg_log"
-    dataset = "kidney"
+    dataset = "prostate"
     task = 0
     output = "annotator"
     d = load_and_process_data(input_file, dataset, task, output, preproc_folder)

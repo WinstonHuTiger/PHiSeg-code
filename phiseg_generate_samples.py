@@ -1,4 +1,3 @@
-
 import glob
 import logging
 import os
@@ -18,13 +17,31 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 # import matplotlib.pyplot as plt
 
 import matplotlib as mpl
+
 mpl.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 model_selection = 'best_ged'
 
-def preproc_image(x, nlabels=None):
+def plotNNFilterOverlay(input_im, units, figure_id, interp='bilinear',
+                        colormap=cm.jet, colormap_lim=None, title='', alpha=0.8):
+    filters = units.shape[1]
 
+    for i in range(filters):
+        plt.imshow(input_im[0, 0, :, :], interpolation=interp, cmap='gray')
+        plt.imshow(units[0, i, :, :], interpolation=interp, cmap=colormap, alpha=alpha)
+        plt.axis('off')
+        plt.title(title, fontsize='small')
+        if colormap_lim:
+            plt.clim(colormap_lim[0],colormap_lim[1])
+
+        break
+
+    # plt.subplots_adjust(wspace=0, hspace=0)
+    # plt.tight_layout()
+
+def preproc_image(x, nlabels=None):
     x_b = np.squeeze(x)
 
     ims = x_b.shape[:2]
@@ -43,13 +60,49 @@ def preproc_image(x, nlabels=None):
     return x_b
 
 
-def generate_error_maps(sample_arr, gt_arr):
+# def generate_error_maps( gt_arr):
+#
+#     def pixel_wise_xent(m_samp, m_gt, eps=1e-8):
+#
+#
+#         log_samples = np.log(m_samp + eps)
+#         return -1.0*np.sum(m_gt*log_samples, axis=-1)
+#
+#     # mean_seg = np.mean(sample_arr, axis=0)
+#     #
+#     # N = sample_arr.shape[0]
+#     M = gt_arr.shape[0]
+#
+#     sX = gt_arr.shape[1]
+#     sY = gt_arr.shape[2]
+#
+#     E_ss_arr = np.zeros((N,sX,sY))
+#     for i in range(N):
+#         E_ss_arr[i,...] = pixel_wise_xent(sample_arr[i,...], mean_seg)
+#
+#     E_ss = np.mean(E_ss_arr, axis=0)
+#
+#     E_sy_arr = np.zeros((M,N, sX, sY))
+#     for j in range(M):
+#         for i in range(N):
+#             E_sy_arr[j,i, ...] = pixel_wise_xent(sample_arr[i,...], gt_arr[j,...])
+#
+#     E_sy_avg = np.mean(np.mean(E_sy_arr, axis=1), axis=0)
+#
+#     E_yy_arr = np.zeros((M,M, sX, sY))
+#     for j in range(M):
+#         for i in range(M):
+#             E_yy_arr[j,i, ...] = pixel_wise_xent(sample_arr[i,...], gt_arr[j,...])
+#
+#     E_yy_avg = np.mean(np.mean(E_yy_arr, axis=1), axis=0)
+#
+#     return E_ss, E_sy_avg, E_yy_avg
 
+def generate_error_maps(sample_arr, gt_arr):
     def pixel_wise_xent(m_samp, m_gt, eps=1e-8):
 
-
         log_samples = np.log(m_samp + eps)
-        return -1.0*np.sum(m_gt*log_samples, axis=-1)
+        return -1.0 * np.sum(m_gt * log_samples, axis=-1)
 
     mean_seg = np.mean(sample_arr, axis=0)
 
@@ -59,32 +112,30 @@ def generate_error_maps(sample_arr, gt_arr):
     sX = sample_arr.shape[1]
     sY = sample_arr.shape[2]
 
-    E_ss_arr = np.zeros((N,sX,sY))
+    E_ss_arr = np.zeros((N, sX, sY))
     for i in range(N):
-        E_ss_arr[i,...] = pixel_wise_xent(sample_arr[i,...], mean_seg)
+        E_ss_arr[i, ...] = pixel_wise_xent(sample_arr[i, ...], mean_seg)
 
     E_ss = np.mean(E_ss_arr, axis=0)
 
-    E_sy_arr = np.zeros((M,N, sX, sY))
+    E_sy_arr = np.zeros((M, N, sX, sY))
     for j in range(M):
         for i in range(N):
-            E_sy_arr[j,i, ...] = pixel_wise_xent(sample_arr[i,...], gt_arr[j,...])
+            E_sy_arr[j, i, ...] = pixel_wise_xent(sample_arr[i, ...], gt_arr[j, ...])
 
     E_sy_avg = np.mean(np.mean(E_sy_arr, axis=1), axis=0)
 
-    E_yy_arr = np.zeros((M,M, sX, sY))
+    E_yy_arr = np.zeros((M, M, sX, sY))
     for j in range(M):
         for i in range(M):
-            E_yy_arr[j,i, ...] = pixel_wise_xent(sample_arr[i,...], gt_arr[j,...])
+            E_yy_arr[j, i, ...] = pixel_wise_xent(sample_arr[i, ...], gt_arr[j, ...])
 
     E_yy_avg = np.mean(np.mean(E_yy_arr, axis=1), axis=0)
 
     return E_ss, E_sy_avg, E_yy_avg
 
 
-
 def main(model_path, exp_config):
-
     # Make and restore vagan model
     phiseg_model = phiseg(exp_config=exp_config)
     phiseg_model.load_weights(model_path, type=model_selection)
@@ -92,14 +143,14 @@ def main(model_path, exp_config):
     data_loader = data_switch(exp_config.data_identifier)
     data = data_loader(exp_config)
 
-    N = data.test.images.shape[0]
+    N = data.validation.images.shape[0]
 
     n_images = 16
-    n_samples = 16
+    n_samples = 6
 
     # indices = np.arange(N)
     # sample_inds = np.random.choice(indices, n_images)
-    sample_inds = [165, 280, 213]  # <-- prostate
+    sample_inds = [0, 1, 2, 3, 4, 5]  # <-- prostate
     # sample_inds = [1551] #[907, 1296, 1551]  # <-- LIDC
 
     for ii in sample_inds:
@@ -109,8 +160,8 @@ def main(model_path, exp_config):
         outfolder = os.path.join(model_path, 'samples_%s' % model_selection, str(ii))
         utils.makefolder(outfolder)
 
-        x_b = data.test.images[ii, ...].reshape([1] + list(exp_config.image_size))
-        s_b = data.test.labels[ii, ...]
+        x_b = data.validation.images[ii, ...].reshape([1] + list(exp_config.image_size))
+        s_b = data.validation.labels[ii, ...]
 
         if np.sum(s_b) < 10:
             print('WARNING: skipping cases with no structures')
@@ -123,7 +174,7 @@ def main(model_path, exp_config):
         x_b_d = preproc_image(x_b)
         plt.imshow(x_b_d, cmap='gray')
         plt.axis('off')
-        plt.savefig(os.path.join(outfolder, 'input_img_%d.png' % ii),bbox_inches='tight')
+        plt.savefig(os.path.join(outfolder, 'input_img_%d.png' % ii), bbox_inches='tight')
 
         print('Generating 100 samples')
         s_p_list = []
@@ -131,46 +182,47 @@ def main(model_path, exp_config):
             s_p_list.append(phiseg_model.predict_segmentation_sample(x_b, return_softmax=True))
         s_p_arr = np.squeeze(np.asarray(s_p_list))
 
-
         print('Plotting %d of those samples' % n_samples)
         for jj in range(n_samples):
-
-            s_p_sm = s_p_arr[jj,...]
+            s_p_sm = s_p_arr[jj, ...]
             s_p_am = np.argmax(s_p_sm, axis=-1)
 
             plt.figure()
             s_p_d = preproc_image(s_p_am, nlabels=exp_config.nlabels)
             plt.imshow(s_p_d, cmap='gray')
             plt.axis('off')
-            plt.savefig(os.path.join(outfolder, 'sample_img_%d_samp_%d.png' % (ii,jj)),bbox_inches='tight')
+            plt.savefig(os.path.join(outfolder, 'sample_img_%d_samp_%d.png' % (ii, jj)), bbox_inches='tight')
 
         print('Plotting ground-truths masks')
         for jj in range(s_b_r.shape[0]):
-
-            s_b_sm = s_b_r[jj,...]
+            s_b_sm = s_b_r[jj, ...]
             s_b_am = np.argmax(s_b_sm, axis=-1)
 
             plt.figure()
             s_p_d = preproc_image(s_b_am, nlabels=exp_config.nlabels)
             plt.imshow(s_p_d, cmap='gray')
             plt.axis('off')
-            plt.savefig(os.path.join(outfolder, 'gt_img_%d_samp_%d.png' % (ii,jj)),bbox_inches='tight')
+            plt.savefig(os.path.join(outfolder, 'gt_img_%d_samp_%d.png' % (ii, jj)), bbox_inches='tight')
 
         print('Generating error masks')
         E_ss, E_sy_avg, E_yy_avg = generate_error_maps(s_p_arr, s_b_r)
 
         print('Plotting them')
         plt.figure()
-        plt.imshow(preproc_image(E_ss))
+        # print(E_ss.shape)
+        plt.imshow(preproc_image(E_ss), cmap = 'gray')
         plt.axis('off')
         plt.savefig(os.path.join(outfolder, 'E_ss_%d.png' % ii), bbox_inches='tight')
+        #
+        plt.figure()
+        plotNNFilterOverlay(np.zeros_like(E_ss[None, None, ...]), E_ss[None, None, ...], 1, title= "gamma map", alpha = 0.8)
+        plt.savefig(os.path.join(outfolder, "gamma_map_%d.png" % ii))
 
         print('Plotting them')
         plt.figure()
         plt.imshow(preproc_image(np.log(E_ss)))
         plt.axis('off')
         plt.savefig(os.path.join(outfolder, 'log_E_ss_%d.png' % ii), bbox_inches='tight')
-
 
         plt.figure()
         plt.imshow(preproc_image(E_sy_avg))
@@ -182,12 +234,15 @@ def main(model_path, exp_config):
         plt.axis('off')
         plt.savefig(os.path.join(outfolder, 'E_yy_avg_%d_.png' % ii), bbox_inches='tight')
 
+        plt.figure()
+        plotNNFilterOverlay(np.zeros_like(E_sy_avg[None, None, ...]), E_sy_avg[None, None, ...], 2, title = "E_sy_avg", alpha = 0.5)
+        plt.savefig(os.path.join(outfolder, "error_map_%d.png" % ii))
         plt.close('all')
 
     # plt.show()
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="Script for a simple test loop evaluating a network on the test dataset")
     parser.add_argument("EXP_PATH",

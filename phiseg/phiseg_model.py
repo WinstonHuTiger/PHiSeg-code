@@ -544,8 +544,6 @@ class phiseg():
         self.saver.restore(self.sess, init_checkpoint_path)
 
 
-    ### HELPER FUNCTIONS #################
-
     def _do_validation(self, data):
 
         global_step = self.sess.run(self.global_step) - 1
@@ -732,7 +730,6 @@ class phiseg():
                                           )
         self.summary_writer.add_summary(train_summary_msg, global_step)
 
-
     def _make_tensorboard_summaries(self):
 
         def create_im_summary(img, name, rescale_mode, batch_size=self.exp_config.batch_size):
@@ -823,7 +820,8 @@ class phiseg():
 
         self.val_ncc = tf.placeholder(tf.float32, shape=[], name='val_ncc')
         val_ncc_summary = tf.summary.scalar('validation_NCC', self.val_ncc)
-        self.val_qubiq = tf.placeholder(tf.float32, shape = [], name = "val_ncc")
+
+        self.val_qubiq = tf.placeholder(tf.float32, shape = [], name = "val_qubiq")
         val_qubiq_summary = tf.summary.scalar("validation_qubiq", self.val_qubiq)
 
 
