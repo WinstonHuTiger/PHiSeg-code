@@ -138,8 +138,8 @@ def QUBIQ(target, logit, eps=1.0):
     #     logit = np.argmax(logit, axis=1) / 10.0
     # else:
 
-    logit = np.mean(logit> 0.9, axis=0)
-    target = np.mean(target, axis=0)
+    logit = np.mean( logit > 0.9, axis=0)
+    target = np.mean(target, axis= 0)
 
     target_slice = np.floor(target * 10)
     logit_slice = np.floor(logit * 10)
@@ -156,6 +156,44 @@ def QUBIQ(target, logit, eps=1.0):
     # dice = np.mean(np.mean(qubiq, axis=1))
     return dice
 
+def dist_fct(m1, m2, nlabels=1):
+    """energy distance for ged & sample diversity
+    """
+
+    per_label_iou = []
+    for lbl in [1]:
+        # assert not lbl == 0  # tmp check
+        m1_bin = (m1 == lbl)*1
+        m2_bin = (m2 == lbl)*1
+
+        if np.sum(m1_bin) == 0 and np.sum(m2_bin) == 0:
+            per_label_iou.append(1)
+        elif np.sum(m1_bin) > 0 and np.sum(m2_bin) == 0 or np.sum(m1_bin) == 0 and np.sum(m2_bin) > 0:
+            per_label_iou.append(0)
+        else:
+            per_label_iou.append(jc(m1_bin, m2_bin))
+
+    return 1-(sum(per_label_iou) / nlabels)
+
+def sample_diversity(sample_arr, gt_arr=None):
+
+    N = sample_arr.shape[0]
+    sd = []
+    for ii in range(N):
+        for jj in range(N):
+            sd.append(dist_fct(sample_arr[ii, ...], sample_arr[jj, ...]))
+
+    return np.mean(sd)
+
+def sample_accuracy(sample_arr, gt_arr):
+    N = sample_arr.shape[0]
+    M = gt_arr.shape[0]
+    sd = []
+    for ii in range(N):
+        for jj in range(M):
+            sd.append(dist_fct(sample_arr[ii, ...], gt_arr[jj, ...]))
+
+    return np.mean(sd)
 
 def norm_l2(a, v):
     a = a.flatten()
